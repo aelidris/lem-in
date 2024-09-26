@@ -1,153 +1,123 @@
-// https://jspaint.app/#local:7836ad97ab865
-
-// Add connections between rooms (constant distance assumed)
-// graph.AddConnection("Room0", "Room4")
-// graph.AddConnection("Room0", "Room6")
-// graph.AddConnection("Room1", "Room3")
-// graph.AddConnection("Room4", "Room3")
-// graph.AddConnection("Room5", "Room2")
-// graph.AddConnection("Room3", "Room5")
-// graph.AddConnection("Room4", "Room2")
-// graph.AddConnection("Room2", "Room1")
-// graph.AddConnection("Room7", "Room6")
-// graph.AddConnection("Room7", "Room2")
-// graph.AddConnection("Room7", "Room4")
-// graph.AddConnection("Room6", "Room5")
-
 package main
 
 import (
-	"bufio"
+	"container/list"
 	"fmt"
+	"log"
 	"os"
 	"strconv"
 	"strings"
 )
 
-type Room struct {
-	name  string
-	links []string
-}
-
-type Graph struct {
-	rooms     map[string]*Room
-	startRoom string
-	endRoom   string
-}
-
-func NewGraph() *Graph {
-	return &Graph{
-		rooms: make(map[string]*Room),
-	}
-}
-
-func (g *Graph) AddRoom(name string) {
-	if _, exists := g.rooms[name]; !exists {
-		g.rooms[name] = &Room{name: name, links: []string{}}
-	}
-}
-
-func (g *Graph) AddConnection(room1, room2 string) {
-	g.AddRoom(room1)
-	g.AddRoom(room2)
-	g.rooms[room1].links = append(g.rooms[room1].links, room2)
-	g.rooms[room2].links = append(g.rooms[room2].links, room1)
-}
-
-func parseFile(fileName string) (*Graph, int, error) {
-	file, err := os.Open(fileName)
+// Extend the function to return parsed links
+func GetData(dataFile string) (start, end string, rooms []string, links [][2]string, antNumbers int) {
+	data, err := os.ReadFile(dataFile)
 	if err != nil {
-		return nil, 0, fmt.Errorf("ERROR: could not open file")
+		log.Fatal(err)
 	}
-	defer file.Close()
+	if len(data) == 0 {
+		log.Fatal("There is no data in the file!!")
+	}
 
-	var numAnts int
-	graph := NewGraph()
-	var startRoom, endRoom string
+	checkData := strings.Split(string(data), "\n")
+	affStart, affEnd := false, false
 
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		line := scanner.Text()
-
-		if strings.HasPrefix(line, "#") && !strings.HasPrefix(line, "##") {
+	// Process the data in a single loop
+	for _, line := range checkData {
+		// Skip comments
+		if strings.HasPrefix(line, "#") {
+			if line == "##start" {
+				affStart = true
+			} else if line == "##end" {
+				affEnd = true
+			}
 			continue
 		}
 
-		if strings.HasPrefix(line, "##start") {
-			scanner.Scan()
-			startRoom = parseRoom(scanner.Text(), graph)
-			graph.startRoom = startRoom
-			continue
+		// If this is the first non-comment line after ##start, capture the start room
+		if affStart {
+			start = strings.Fields(line)[0]
+			affStart = false
 		}
 
-		if strings.HasPrefix(line, "##end") {
-			scanner.Scan()
-			endRoom = parseRoom(scanner.Text(), graph)
-			graph.endRoom = endRoom
-			continue
+		// If this is the first non-comment line after ##end, capture the end room
+		if affEnd {
+			end = strings.Fields(line)[0]
+			affEnd = false
 		}
 
-		if numAnts == 0 {
-			numAnts, err = strconv.Atoi(line)
+		// Capture number of ants (first non-comment line that is a single number)
+		if antNumbers == 0 && IsNumber(line) {
+			antNumbers, err = strconv.Atoi(line)
 			if err != nil {
-				return nil, 0, fmt.Errorf("ERROR: invalid number of ants")
+				log.Fatal("Error converting number of ants to int:", err)
 			}
 			continue
 		}
 
-		if strings.Contains(line, " ") {
-			parseRoom(line, graph)
+		// Capture room names (lines with three parts, representing room definition)
+		parts := strings.Fields(line)
+		if len(parts) == 3 {
+			rooms = append(rooms, parts[0])
 		}
 
+		// Capture links (lines in the format "name1-name2")
 		if strings.Contains(line, "-") {
-			parts := strings.Split(line, "-")
-			if len(parts) == 2 {
-				graph.AddConnection(parts[0], parts[1])
+			roomsLink := strings.Split(line, "-")
+			if len(roomsLink) == 2 {
+				links = append(links, [2]string{roomsLink[0], roomsLink[1]})
 			}
 		}
 	}
 
-	if startRoom == "" || endRoom == "" {
-		return nil, 0, fmt.Errorf("ERROR: invalid data format, no start or end room found")
-	}
-
-	return graph, numAnts, nil
+	return start, end, rooms, links, antNumbers
 }
 
-func parseRoom(line string, graph *Graph) string {
-	parts := strings.Split(line, " ")
-	if len(parts) != 3 {
-		return ""
-	}
-	roomName := parts[0]
-	graph.AddRoom(roomName)
-	return roomName
+// Helper function to check if a string represents a number
+func IsNumber(str string) bool {
+	_, err := strconv.Atoi(str)
+	return err == nil
 }
 
-// Find multiple shortest paths using BFS
-func findAllShortestPaths(graph *Graph, start, end string) [][]string {
+// BuildGraph takes the list of rooms and links, and constructs an adjacency list
+func BuildGraph(rooms []string, links [][2]string) map[string][]string {
+	graph := make(map[string][]string)
+
+	// Initialize each room in the graph
+	for _, room := range rooms {
+		graph[room] = []string{}
+	}
+
+	// Add edges for each link
+	for _, link := range links {
+		room1, room2 := link[0], link[1]
+		graph[room1] = append(graph[room1], room2)
+		graph[room2] = append(graph[room2], room1) // because the graph is undirected
+	}
+
+	return graph
+}
+
+// BFS function to find all shortest paths using a variation of BFS
+func BFSAllPaths(graph map[string][]string, start, end string) [][]string {
 	var paths [][]string
-	queue := [][]string{{start}}
+	queue := list.New()
+	queue.PushBack([]string{start})
 
-	visited := map[string]bool{start: true}
+	for queue.Len() > 0 {
+		path := queue.Remove(queue.Front()).([]string)
+		room := path[len(path)-1]
 
-	for len(queue) > 0 {
-		path := queue[0]
-		queue = queue[1:]
-
-		lastRoom := path[len(path)-1]
-
-		if lastRoom == end {
+		if room == end {
 			paths = append(paths, path)
-			continue
 		}
 
-		for _, neighbor := range graph.rooms[lastRoom].links {
-			if !visited[neighbor] || neighbor == end {
-				newPath := append([]string{}, path...)
+		for _, neighbor := range graph[room] {
+			// Skip if the room is already in the path (to avoid cycles)
+			if !contains(path, neighbor) {
+				newPath := append([]string{}, path...) // Copy the current path
 				newPath = append(newPath, neighbor)
-				queue = append(queue, newPath)
-				visited[neighbor] = true
+				queue.PushBack(newPath)
 			}
 		}
 	}
@@ -155,67 +125,118 @@ func findAllShortestPaths(graph *Graph, start, end string) [][]string {
 	return paths
 }
 
-// Simulate the movement of ants
-func simulateAntMovement(paths [][]string, numAnts int) {
-	antPositions := make(map[int]int) // Ant number to path position
-	antsFinished := 0
-	step := 0
-	numPaths := len(paths)
+// Helper function to check if a path contains a room
+func contains(path []string, room string) bool {
+	for _, r := range path {
+		if r == room {
+			return true
+		}
+	}
+	return false
+}
 
-	// Assign ants to paths in a round-robin manner
-	for antsFinished < numAnts {
-		step++
-		moves := []string{}
+// SimulateAnts function to simulate the movement of ants along multiple paths
+func SimulateAnts(paths [][]string, antNumbers int, end string, graph map[string][]string) {
+	ants := make([]int, antNumbers)      // Array to track which path each ant is on
+	positions := make([]int, antNumbers) // Array to track each ant's current position on their path
 
-		for ant := 1; ant <= numAnts; ant++ {
-			pathIdx := (ant - 1) % numPaths
-			path := paths[pathIdx]
+	// Room occupancy tracker for each round (key is room name, value is if occupied or not)
+	occupied := make(map[string]bool)
 
-			// If the ant has already reached the end, skip it
-			if antPositions[ant] >= len(path)-1 {
+	// Assign each ant to a path
+	for i := 0; i < antNumbers; i++ {
+		ants[i] = i % len(paths) // Cycle through the available paths
+	}
+
+	round := 1
+	for !allAntsAtEnd(positions, paths) {
+		fmt.Printf("Round %d:\n", round)
+
+		// Reset room occupancy for the round
+		occupied = make(map[string]bool)
+
+		for i := 0; i < antNumbers; i++ {
+			// Current position and next position for this ant
+			nextPos := positions[i] + 1
+
+			// Current room the ant is in
+			currentRoom := paths[ants[i]][positions[i]]
+
+			// Check if there is a direct link to the end room
+			if hasDirectPath(graph, currentRoom, end) {
+				positions[i]++ // Move the ant directly to the end room
+				occupied[end] = true // Mark end room as occupied
+				fmt.Printf("L%d-%s ", i+1, end)
 				continue
 			}
 
-			// Move ant to the next room if the room is not occupied
-			if antPositions[ant] < len(path)-1 {
-				antPositions[ant]++
-				move := fmt.Sprintf("L%d-%s", ant, path[antPositions[ant]])
-				moves = append(moves, move)
+			// Check if the ant can move to the next room
+			if nextPos < len(paths[ants[i]]) {
+				nextRoom := paths[ants[i]][nextPos]
 
-				// If the ant reached the end, increase finished count
-				if antPositions[ant] == len(path)-1 {
-					antsFinished++
+				// If the next room is the end room, move the ant there
+				if nextRoom == end {
+					positions[i]++
+					occupied[nextRoom] = true // Mark the end room as occupied
+					fmt.Printf("L%d-%s ", i+1, nextRoom)
+					continue
+				}
+
+				// If the next room is not occupied, move the ant there
+				if !occupied[nextRoom] {
+					positions[i]++
+					occupied[nextRoom] = true // Mark the room as occupied
+					fmt.Printf("L%d-%s ", i+1, nextRoom)
 				}
 			}
 		}
-
-		// Only print moves if any ants moved this step
-		if len(moves) > 0 {
-			fmt.Println(strings.Join(moves, " "))
-		}
+		fmt.Println()
+		round++
 	}
 }
 
+// Function to check if there is a direct path between two rooms in the graph
+func hasDirectPath(graph map[string][]string, roomA, roomB string) bool {
+	for _, neighbor := range graph[roomA] {
+		if neighbor == roomB {
+			return true
+		}
+	}
+	return false
+}
+
+
+// Check if all ants have reached the end room
+func allAntsAtEnd(positions []int, paths [][]string) bool {
+	for i, pos := range positions {
+		if pos < len(paths[i%len(paths)])-1 { // If any ant is not at the end
+			return false
+		}
+	}
+	return true
+}
+
 func main() {
-	if len(os.Args) < 2 {
-		fmt.Println("ERROR: no input file specified")
-		return
+	if len(os.Args) != 2 {
+		log.Fatal("Usage: go run main.go <datafile>")
 	}
 
-	filename := os.Args[1]
-	graph, numAnts, err := parseFile(filename)
-	if err != nil {
-		fmt.Println(err)
-		return
+	// Call GetData and retrieve the start, end, rooms, links, and number of ants
+	start, end, rooms, links, antNumbers := GetData(os.Args[1])
+
+	// Build the graph (adjacency list) from rooms and links
+	graph := BuildGraph(rooms, links)
+
+	// Use BFS to find all shortest paths from start to end
+	paths := BFSAllPaths(graph, start, end)
+
+	// Display the found paths
+	fmt.Println("Found Paths:")
+	for _, path := range paths {
+		fmt.Println(path)
 	}
 
-	// Find all shortest paths from start to end
-	paths := findAllShortestPaths(graph, graph.startRoom, graph.endRoom)
-	if len(paths) == 0 {
-		fmt.Println("ERROR: no path from start to end")
-		return
-	}
-
-	// Simulate and display the movement of ants
-	simulateAntMovement(paths, numAnts)
+	// Simulate ant movement along the found paths
+	fmt.Println("\nAnt Movement Simulation:")
+	SimulateAnts(paths, antNumbers, end, graph)
 }
