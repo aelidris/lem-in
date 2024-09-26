@@ -164,7 +164,7 @@ func SimulateAnts(paths [][]string, antNumbers int, end string, graph map[string
 
 			// Check if there is a direct link to the end room
 			if hasDirectPath(graph, currentRoom, end) {
-				positions[i]++ // Move the ant directly to the end room
+				positions[i]++       // Move the ant directly to the end room
 				occupied[end] = true // Mark end room as occupied
 				fmt.Printf("L%d-%s ", i+1, end)
 				continue
@@ -205,7 +205,6 @@ func hasDirectPath(graph map[string][]string, roomA, roomB string) bool {
 	return false
 }
 
-
 // Check if all ants have reached the end room
 func allAntsAtEnd(positions []int, paths [][]string) bool {
 	for i, pos := range positions {
@@ -223,6 +222,13 @@ func main() {
 
 	// Call GetData and retrieve the start, end, rooms, links, and number of ants
 	start, end, rooms, links, antNumbers := GetData(os.Args[1])
+	fmt.Println("start room: ", start)
+	fmt.Println("end room: ", end)
+	fmt.Println("rooms: ", rooms)
+	fmt.Println("links between rooms: ", links)
+	fmt.Println("number of ants: ", antNumbers)
+
+	fmt.Println()
 
 	// Build the graph (adjacency list) from rooms and links
 	graph := BuildGraph(rooms, links)
