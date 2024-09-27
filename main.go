@@ -47,7 +47,7 @@ func GetData(dataFile string) (start, end string, rooms []string, links [][2]str
 		}
 
 		// Capture number of ants (first non-comment line that is a single number)
-		if antNumbers == 0 && IsNumber(line) {
+		if antNumbers == 0 {
 			antNumbers, err = strconv.Atoi(line)
 			if err != nil {
 				log.Fatal("Error converting number of ants to int:", err)
@@ -73,11 +73,6 @@ func GetData(dataFile string) (start, end string, rooms []string, links [][2]str
 	return start, end, rooms, links, antNumbers
 }
 
-// Helper function to check if a string represents a number
-func IsNumber(str string) bool {
-	_, err := strconv.Atoi(str)
-	return err == nil
-}
 
 // BuildGraph takes the list of rooms and links, and constructs an adjacency list
 func BuildGraph(rooms []string, links [][2]string) map[string][]string {
