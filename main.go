@@ -52,6 +52,9 @@ func GetData(dataFile string) (start, end string, rooms []string, links [][2]str
 			if err != nil {
 				log.Fatal("Error converting number of ants to int:", err)
 			}
+			if antNumbers <= 0 {
+				log.Fatal("the number of ant should >= 1 !!")
+			}
 			continue
 		}
 
@@ -72,7 +75,6 @@ func GetData(dataFile string) (start, end string, rooms []string, links [][2]str
 
 	return start, end, rooms, links, antNumbers
 }
-
 
 // BuildGraph takes the list of rooms and links, and constructs an adjacency list
 func BuildGraph(rooms []string, links [][2]string) map[string][]string {
