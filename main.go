@@ -232,7 +232,9 @@ func main() {
 
 	// Use BFS to find all shortest paths from start to end
 	paths := BFSAllPaths(graph, start, end)
-
+	if len(paths) == 0 {
+		log.Fatal("In your data there is no path(s) from the start room to end room !!")
+	}
 	// Display the found paths
 	fmt.Println("Found Paths:")
 	for _, path := range paths {
