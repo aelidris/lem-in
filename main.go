@@ -7,6 +7,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
 )
 
 // Extend the function to return parsed links
@@ -132,84 +133,102 @@ func contains(path []string, room string) bool {
 	return false
 }
 
-// SimulateAnts function to simulate the movement of ants along multiple paths
-func SimulateAnts(paths [][]string, antNumbers int, end string, graph map[string][]string) {
-	ants := make([]int, antNumbers)      // Array to track which path each ant is on
-	positions := make([]int, antNumbers) // Array to track each ant's current position on their path
+func displayFinalPaths(paths [][]string, antNumbers int, lastRoom string) {
+    fmt.Println(antNumbers)
 
-	// Room occupancy tracker for each round (key is room name, value is if occupied or not)
-	occupied := make(map[string]bool)
+    // Initialize positions of ants (-1 means not started yet)
+    antPosition := make([]int, antNumbers)
+    for i := 0; i < antNumbers; i++ {
+        antPosition[i] = -1
+    }
 
-	// Assign each ant to a path
-	for i := 0; i < antNumbers; i++ {
-		ants[i] = i % len(paths) // Cycle through the available paths
-	}
+    // Assign initial paths to ants
+    assignedPaths := make([]int, antNumbers)
+    for i := 0; i < antNumbers; i++ {
+        assignedPaths[i] = i % len(paths)
+    }
 
-	round := 1
-	for !allAntsAtEnd(positions, paths) {
-		fmt.Printf("Round %d:\n", round)
+    turn := 1
+    completedAnts := 0
 
-		// Reset room occupancy for the round
-		occupied = make(map[string]bool)
+    // Iterate until all ants have reached the end room
+    for completedAnts < antNumbers {
+        fmt.Printf("Turn %d: ", turn)
+        roomsOccupied := make(map[string]bool) // Track occupied rooms for this turn
 
-		for i := 0; i < antNumbers; i++ {
-			// Current position and next position for this ant
-			nextPos := positions[i] + 1
+        // Move ants in order
+        for i := 0; i < antNumbers; i++ {
+            pathIdx := assignedPaths[i]
+            currentPosition := antPosition[i]
 
-			// Current room the ant is in
-			currentRoom := paths[ants[i]][positions[i]]
+            // If the ant has reached the end room, skip it
+            if currentPosition >= len(paths[pathIdx])-1 {
+                continue
+            }
 
-			// Check if there is a direct link to the end room
-			if hasDirectPath(graph, currentRoom, end) {
-				positions[i]++       // Move the ant directly to the end room
-				occupied[end] = true // Mark end room as occupied
-				fmt.Printf("L%d-%s ", i+1, end)
+            if currentPosition == -1 {
+                // Ant has not started yet; try to move it out of the start room
+                nextRoom := paths[pathIdx][1]
+                if !roomsOccupied[nextRoom] {
+                    fmt.Printf("L%d-%s ", i+1, nextRoom)
+                    antPosition[i] = 1
+                    roomsOccupied[nextRoom] = true
+                }
+            } else {
+                // Ant is already on its path; try to move to the next room
+                nextRoom := paths[pathIdx][currentPosition+1]
+                if nextRoom == lastRoom || !roomsOccupied[nextRoom] {
+                    // Move the ant to the next room if it is not occupied or if it’s the end room
+                    fmt.Printf("L%d-%s ", i+1, nextRoom)
+                    antPosition[i]++
+                    if nextRoom != lastRoom {
+                        roomsOccupied[nextRoom] = true
+                    } else {
+                        completedAnts++
+                    }
+                }
+            }
+        }
+
+        fmt.Println()
+        turn++
+    }
+}
+
+
+// Function to filter paths with unique rooms, excluding rooms "1" and "0"
+func filterUniquePaths(paths [][]string) [][]string {
+	uniqueRooms := make(map[string]bool) // Track unique rooms
+	var filteredPaths [][]string
+
+	for _, path := range paths {
+		hasUniqueRooms := true
+		roomSet := make(map[string]bool)
+
+		// Check each room in the path, skip room "1" and room "0"
+		for _, room := range path {
+			if room == "1" || room == "0" {
 				continue
 			}
+			// Check if the room is already used in another path
+			if uniqueRooms[room] || roomSet[room] {
+				hasUniqueRooms = false
+				break
+			}
+			roomSet[room] = true
+		}
 
-			// Check if the ant can move to the next room
-			if nextPos < len(paths[ants[i]]) {
-				nextRoom := paths[ants[i]][nextPos]
-
-				// If the next room is the end room, move the ant there
-				if nextRoom == end {
-					positions[i]++
-					occupied[nextRoom] = true // Mark the end room as occupied
-					fmt.Printf("L%d-%s ", i+1, nextRoom)
-					continue
-				}
-
-				// If the next room is not occupied, move the ant there
-				if !occupied[nextRoom] {
-					positions[i]++
-					occupied[nextRoom] = true // Mark the room as occupied
-					fmt.Printf("L%d-%s ", i+1, nextRoom)
-				}
+		// If all rooms in this path are unique, add the path to the result
+		if hasUniqueRooms {
+			filteredPaths = append(filteredPaths, path)
+			// Mark these rooms as used
+			for room := range roomSet {
+				uniqueRooms[room] = true
 			}
 		}
-		fmt.Println()
-		round++
 	}
-}
 
-// Function to check if there is a direct path between two rooms in the graph
-func hasDirectPath(graph map[string][]string, roomA, roomB string) bool {
-	for _, neighbor := range graph[roomA] {
-		if neighbor == roomB {
-			return true
-		}
-	}
-	return false
-}
-
-// Check if all ants have reached the end room
-func allAntsAtEnd(positions []int, paths [][]string) bool {
-	for i, pos := range positions {
-		if pos < len(paths[i%len(paths)])-1 { // If any ant is not at the end
-			return false
-		}
-	}
-	return true
+	return filteredPaths
 }
 
 func main() {
@@ -229,7 +248,11 @@ func main() {
 
 	// Build the graph (adjacency list) from rooms and links
 	graph := BuildGraph(rooms, links)
+	fmt.Println("Display the graph: ")
+	fmt.Println(graph)
 
+
+	fmt.Println()
 	// Use BFS to find all shortest paths from start to end
 	paths := BFSAllPaths(graph, start, end)
 	if len(paths) == 0 {
@@ -237,11 +260,15 @@ func main() {
 	}
 	// Display the found paths
 	fmt.Println("Found Paths:")
+	fmt.Println(paths)
+	fmt.Println()
 	for _, path := range paths {
 		fmt.Println(path)
 	}
-
-	// Simulate ant movement along the found paths
-	fmt.Println("\nAnt Movement Simulation:")
-	SimulateAnts(paths, antNumbers, end, graph)
+	fmt.Println("Paths after filtring: ")
+	filtredPaths := filterUniquePaths(paths)
+	fmt.Println(filtredPaths)
+	fmt.Println()
+	//Find the final paths to make all the ants in the end room
+	displayFinalPaths(filtredPaths, antNumbers, end)
 }
