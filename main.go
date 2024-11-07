@@ -7,7 +7,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-
 )
 
 // Extend the function to return parsed links
@@ -134,101 +133,143 @@ func contains(path []string, room string) bool {
 }
 
 func displayFinalPaths(paths [][]string, antNumbers int, lastRoom string) {
-    fmt.Println(antNumbers)
+	fmt.Println(antNumbers)
 
-    // Initialize positions of ants (-1 means not started yet)
-    antPosition := make([]int, antNumbers)
-    for i := 0; i < antNumbers; i++ {
-        antPosition[i] = -1
-    }
+	// Initialize positions of ants (-1 means not started yet)
+	antPosition := make([]int, antNumbers)
+	for i := 0; i < antNumbers; i++ {
+		antPosition[i] = -1
+	}
 
-    // Assign initial paths to ants
-    assignedPaths := make([]int, antNumbers)
-    for i := 0; i < antNumbers; i++ {
-        assignedPaths[i] = i % len(paths)
-    }
+	// Assign initial paths to ants
+	assignedPaths := make([]int, antNumbers)
+	for i := 0; i < antNumbers; i++ {
+		assignedPaths[i] = i % len(paths)
+	}
 
-    turn := 1
-    completedAnts := 0
+	turn := 1
+	completedAnts := 0
 
-    // Iterate until all ants have reached the end room
-    for completedAnts < antNumbers {
-        fmt.Printf("Turn %d: ", turn)
-        roomsOccupied := make(map[string]bool) // Track occupied rooms for this turn
+	// Iterate until all ants have reached the end room
+	for completedAnts < antNumbers {
+		fmt.Printf("Turn %d: ", turn)
+		roomsOccupied := make(map[string]bool) // Track occupied rooms for this turn
 
-        // Move ants in order
-        for i := 0; i < antNumbers; i++ {
-            pathIdx := assignedPaths[i]
-            currentPosition := antPosition[i]
+		// Move ants in order
+		for i := 0; i < antNumbers; i++ {
+			pathIdx := assignedPaths[i]
+			currentPosition := antPosition[i]
 
-            // If the ant has reached the end room, skip it
-            if currentPosition >= len(paths[pathIdx])-1 {
-                continue
-            }
-
-            if currentPosition == -1 {
-                // Ant has not started yet; try to move it out of the start room
-                nextRoom := paths[pathIdx][1]
-                if !roomsOccupied[nextRoom] {
-                    fmt.Printf("L%d-%s ", i+1, nextRoom)
-                    antPosition[i] = 1
-                    roomsOccupied[nextRoom] = true
-                }
-            } else {
-                // Ant is already on its path; try to move to the next room
-                nextRoom := paths[pathIdx][currentPosition+1]
-                if nextRoom == lastRoom || !roomsOccupied[nextRoom] {
-                    // Move the ant to the next room if it is not occupied or if it’s the end room
-                    fmt.Printf("L%d-%s ", i+1, nextRoom)
-                    antPosition[i]++
-                    if nextRoom != lastRoom {
-                        roomsOccupied[nextRoom] = true
-                    } else {
-                        completedAnts++
-                    }
-                }
-            }
-        }
-
-        fmt.Println()
-        turn++
-    }
-}
-
-
-// Function to filter paths with unique rooms, excluding rooms "1" and "0"
-func filterUniquePaths(paths [][]string) [][]string {
-	uniqueRooms := make(map[string]bool) // Track unique rooms
-	var filteredPaths [][]string
-
-	for _, path := range paths {
-		hasUniqueRooms := true
-		roomSet := make(map[string]bool)
-
-		// Check each room in the path, skip room "1" and room "0"
-		for _, room := range path {
-			if room == "1" || room == "0" {
+			// If the ant has reached the end room, skip it
+			if currentPosition >= len(paths[pathIdx])-1 {
 				continue
 			}
-			// Check if the room is already used in another path
-			if uniqueRooms[room] || roomSet[room] {
-				hasUniqueRooms = false
-				break
+
+			if currentPosition == -1 {
+				// Ant has not started yet; try to move it out of the start room
+				nextRoom := paths[pathIdx][1]
+				if !roomsOccupied[nextRoom] {
+					fmt.Printf("L%d-%s ", i+1, nextRoom)
+					antPosition[i] = 1
+					roomsOccupied[nextRoom] = true
+				}
+			} else {
+				// Ant is already on its path; try to move to the next room
+				nextRoom := paths[pathIdx][currentPosition+1]
+				if nextRoom == lastRoom || !roomsOccupied[nextRoom] {
+					// Move the ant to the next room if it is not occupied or if it’s the end room
+					fmt.Printf("L%d-%s ", i+1, nextRoom)
+					antPosition[i]++
+					if nextRoom != lastRoom {
+						roomsOccupied[nextRoom] = true
+					} else {
+						completedAnts++
+					}
+				}
 			}
-			roomSet[room] = true
 		}
 
-		// If all rooms in this path are unique, add the path to the result
-		if hasUniqueRooms {
-			filteredPaths = append(filteredPaths, path)
-			// Mark these rooms as used
-			for room := range roomSet {
-				uniqueRooms[room] = true
+		fmt.Println()
+		turn++
+	}
+}
+
+func filterUniquePaths(paths [][]string, numAnts int) [][]string {
+	// If there's only one ant, return the shortest path
+	if numAnts == 1 {
+		return [][]string{paths[0]}
+	}
+
+	// Helper function to check if two paths share any rooms
+	hasSharedRooms := func(path1, path2 []string) bool {
+		// Create set of rooms from path1 (excluding start and end)
+		rooms1 := make(map[string]bool)
+		for i := 1; i < len(path1)-1; i++ {
+			rooms1[path1[i]] = true
+		}
+
+		// Check if any room from path2 exists in path1
+		for i := 1; i < len(path2)-1; i++ {
+			if rooms1[path2[i]] {
+				return true
 			}
+		}
+		return false
+	}
+
+	// Helper function to check if a set of paths are all unique
+	arePathsUnique := func(selectedPaths [][]string) bool {
+		for i := 0; i < len(selectedPaths); i++ {
+			for j := i + 1; j < len(selectedPaths); j++ {
+				if hasSharedRooms(selectedPaths[i], selectedPaths[j]) {
+					return false
+				}
+			}
+		}
+		return true
+	}
+
+	var maxUniquePaths [][]string
+	n := len(paths)
+
+	// Try all possible combinations of paths
+	// Start with larger combinations first
+	for size := n; size > 0; size-- {
+		// Generate combinations of paths of current size
+		var combine func(int, int, [][]string)
+		combine = func(start int, size int, current [][]string) {
+			if size == 0 {
+				// Check if this combination is valid
+				if arePathsUnique(current) {
+					// If we found a valid combination and it's larger than our current max
+					if len(current) > len(maxUniquePaths) {
+						maxUniquePaths = make([][]string, len(current))
+						copy(maxUniquePaths, current)
+						return
+					}
+				}
+				return
+			}
+
+			// Try adding each remaining path
+			for i := start; i <= n-size; i++ {
+				newCurrent := make([][]string, len(current))
+				copy(newCurrent, current)
+				newCurrent = append(newCurrent, paths[i])
+				combine(i+1, size-1, newCurrent)
+			}
+		}
+
+		combine(0, size, [][]string{})
+
+		// If we found any valid combination, we can stop
+		// as we're processing from largest to smallest
+		if len(maxUniquePaths) > 0 {
+			break
 		}
 	}
 
-	return filteredPaths
+	return maxUniquePaths
 }
 
 func main() {
@@ -251,7 +292,6 @@ func main() {
 	fmt.Println("Display the graph: ")
 	fmt.Println(graph)
 
-
 	fmt.Println()
 	// Use BFS to find all shortest paths from start to end
 	paths := BFSAllPaths(graph, start, end)
@@ -260,15 +300,22 @@ func main() {
 	}
 	// Display the found paths
 	fmt.Println("Found Paths:")
-	fmt.Println(paths)
+	fmt.Println("Number of paths: ", len(paths))
 	fmt.Println()
 	for _, path := range paths {
 		fmt.Println(path)
 	}
 	fmt.Println("Paths after filtring: ")
-	filtredPaths := filterUniquePaths(paths)
+	filtredPaths := filterUniquePaths(paths, antNumbers)
 	fmt.Println(filtredPaths)
 	fmt.Println()
-	//Find the final paths to make all the ants in the end room
+	// testPath := [][]string{}
+	// for i, ch := range paths {
+	// 	if i == 2 || i == 3 || i == 4 {
+	// 		testPath = append(testPath, ch)
+	// 	}
+	// }
+	// fmt.Println(testPath)
+	// Find the final paths to make all the ants in the end room
 	displayFinalPaths(filtredPaths, antNumbers, end)
 }
