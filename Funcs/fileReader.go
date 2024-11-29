@@ -73,7 +73,7 @@ func GetData(dataFile string) (start, end string, rooms []string, links []string
 				}
 				affStart = true
 				findStart = true
-			} else if line == "##end" && len(start) != 0{
+			} else if line == "##end" && len(start) != 0 {
 				if findEnd {
 					log.Fatal("ERROR: Issue with the end command (##end)")
 				}
@@ -81,7 +81,7 @@ func GetData(dataFile string) (start, end string, rooms []string, links []string
 				findEnd = true
 			} else if line == "##end" && len(start) == 0 {
 				log.Fatal("ERROR: Can't found the start room")
-			}else if len(line) > 1 && strings.HasPrefix(line, "##") && line != "##start" && line != "##end" {
+			} else if len(line) > 1 && strings.HasPrefix(line, "##") && line != "##start" && line != "##end" {
 				log.Fatal("ERROR: Only ##start and ##end are allowed commands")
 			}
 			continue
@@ -136,7 +136,7 @@ func GetData(dataFile string) (start, end string, rooms []string, links []string
 			}
 
 			if !validRoomName(x[0]) || !validRoomName(x[1]) {
-				log.Fatal("ERROR: Room doesn't exist")
+				log.Fatal("ERROR: Issue with room names")
 			}
 
 			links = append(links, line)
