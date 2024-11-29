@@ -151,9 +151,7 @@ func GetData(dataFile string) (start, end string, rooms []string, links []string
 		}
 	}
 
-	if len(end) != 0 {
-		log.Fatal("ERROR: Can't found th end room")
-	}
+	
 	for _, line := range checkData {
 		fmt.Println(line)
 	}
