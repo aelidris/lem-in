@@ -88,13 +88,21 @@ func GetData(dataFile string) (start, end string, rooms []string, links []string
 		}
 
 		if affStart {
-			start = strings.Fields(line)[0]
-			affStart = false
+			if len(strings.Fields(line)) == 3 {
+				start = strings.Fields(line)[0]
+				affStart = false
+			} else {
+				log.Fatal("ERROR: Can't found the start room")
+			}
 		}
 		// If this is the first non-comment line after ##end, capture the end room
 		if affEnd {
-			end = strings.Fields(line)[0]
-			affEnd = false
+			if len(strings.Fields(line)) == 3 {
+				end = strings.Fields(line)[0]
+				affEnd = false
+			} else {
+				log.Fatal("ERROR: Can't found the end room")
+			}
 		}
 
 		if antNumbers == 0 {
@@ -151,7 +159,6 @@ func GetData(dataFile string) (start, end string, rooms []string, links []string
 		}
 	}
 
-	
 	for _, line := range checkData {
 		fmt.Println(line)
 	}
