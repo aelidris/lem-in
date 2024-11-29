@@ -95,9 +95,6 @@ func GetData(dataFile string) (start, end string, rooms []string, links []string
 		}
 		// If this is the first non-comment line after ##end, capture the end room
 		if affEnd {
-			if affEnd {
-				log.Fatal("ERROR: invalid data format, can't find the end room")
-			}
 			end = strings.Fields(line)[0]
 			affEnd = false
 		}
