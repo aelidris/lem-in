@@ -73,25 +73,23 @@ func GetData(dataFile string) (start, end string, rooms []string, links []string
 				}
 				affStart = true
 				findStart = true
-			} else if line == "##end" {
+			} else if line == "##end" && len(start) != 0{
 				if findEnd {
 					log.Fatal("ERROR: Issue with the end command (##end)")
 				}
 				affEnd = true
 				findEnd = true
-			} else if len(line) > 1 && strings.HasPrefix(line, "##") && line != "##start" && line != "##end" {
+			} else if line == "##end" && len(start) == 0 {
+				log.Fatal("ERROR: Can't found the start room")
+			}else if len(line) > 1 && strings.HasPrefix(line, "##") && line != "##start" && line != "##end" {
 				log.Fatal("ERROR: Only ##start and ##end are allowed commands")
 			}
 			continue
 		}
 
 		if affStart {
-			if affEnd {
-				log.Fatal("ERROR: invalid data format, can't find the start room")
-			}
 			start = strings.Fields(line)[0]
 			affStart = false
-
 		}
 		// If this is the first non-comment line after ##end, capture the end room
 		if affEnd {
@@ -153,6 +151,9 @@ func GetData(dataFile string) (start, end string, rooms []string, links []string
 		}
 	}
 
+	if len(end) != 0 {
+		log.Fatal("ERROR: Can't found th end room")
+	}
 	for _, line := range checkData {
 		fmt.Println(line)
 	}
